@@ -9,8 +9,8 @@ import logging
 import asyncio
 from cfg import bot_token
 from keyboards.bot_keyboard import create_kb1, create_kb2, create_kb3, create_kb4
-from keyboards.bot_keyboard_inline import get_data_kb
-from utilits.get_data import get_dates
+from keyboards.bot_keyboard_inline import get_data_kb, get_time_kb, get_yesno
+from utilits.get_data import get_dates, get_times
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,30 +58,54 @@ async def incorrect_zapis(message: Message):
     await message.answer("Ты не выбрал действие! Нажми кнопку", reply_markup=create_kb3)
 
 @dp.message(Ms.data)
-# async def send_data(callback_query: CallbackQuery, state: FSMContext):
-async def send_data(message: Message, state: FSMContext):
+async def send_data(callback_query: CallbackQuery, state: FSMContext):
+# async def send_data(message: Message, state: FSMContext):
     k = get_dates()
-    keyboard = get_data_kb(k)
+    ikeyb = get_data_kb(k)
     # await callback_query.message.answer(
     #     "Выберите дату", reply_markup=keyboard)
-    await message.answer(
-        "Выберите дату", reply_markup=keyboard)
+    print(ikeyb)
+    await callback_query.answer(
+        "Выберите дату", reply_markup=ikeyb)
     await state.set_state(Ms.vremya)
+    print("k")
 
 
-@dp.message(Ms.data)
-async def incorrect_data(message: Message):
-    await message.answer("Ты не указал время!")
+# @dp.message(Ms.data)
+# async def incorrect_data(message: Message):
+#     await message.answer("Ты не указал время!")
 
-# @dp.message(Ms.vremya)
-@dp.callback_query(Ms.vremya)
-async def send_vremya(callback_query: CallbackQuery, state: FSMContext):
-    select_data = callback_query.data.split(':')[1]
-    print(select_data)
-    await message.reply(
-        "Напишите время в формате 18:00")
+# F.data.startswith("data")
+@dp.callback_query(F.data.startswith("data:"), Ms.vremya)
+async def process_selected_time(callback: CallbackQuery, state: FSMContext):
+    date_str = callback.data.split(":")[1]
+
+    k = get_dates()
+    ikeyb = get_data_kb(k)
+    print(k)
+    print(ikeyb)
+    await callback.answer(f"Вы выбрали дату: {date_str}")
+    await callback.message.answer(f"Теперь выберите время для {date_str}", reply_markup=ikeyb)
+
+    # Сохраняем дату в состояние
+    await state.update_data(selected_date=date_str)
     await state.set_state(Ms.podt)
 
+
+@dp.callback_query(F.data.startswith("yesno:"), Ms.podt)
+async def process_selected_yesno(callback: CallbackQuery, state: FSMContext):
+    date_str = callback.data.split(":")[1]
+    yn_kb= get_yesno()
+    print("Xd")
+    print(date_str)
+    print(yn_kb)
+    await callback.answer(f"Вы выбрали время: {date_str}")
+    await callback.message.answer(f"Теперь подтвердите вашу запись", reply_markup=yn_kb)
+    await state.set_state(Ms.finish)
+
+    # Сохраняем дату в состояние
+    await state.update_data(selected_date=date_str)
+    await state.set_state(Ms.finish)
 @dp.message(Ms.vremya)
 async def incorrect_vreamya(message: Message):
     await message.answer("Ты неправильно выбрал время!")
@@ -95,15 +119,7 @@ async def approve(message: Message, state: FSMContext):
 async def incorrect_approve(message: Message):
     await message.answer("Ты не выбрал действие! Нажми кнопку", reply_markup=create_kb1)
 
-@dp.message(Ms.finish, F.text == 'Да')
-async def aprove(message: Message, state: FSMContext):
-    await message.answer("Вы подтвердили запись", reply_markup=create_kb1)
-    await state.set_state(Ms.usluga)
 
-@dp.message(Ms.finish, F.text == 'Нет')
-async def aprove(message: Message, state: FSMContext):
-    await message.answer("Вы не подтвердили запись", reply_markup=create_kb1)
-    await state.clear(Ms.usluga)
 
 
 
