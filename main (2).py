@@ -21,9 +21,10 @@ menu = ['Инфо', 'Запись📅']
 uslugi = ["Мужская стрижка", "Fade", "Детская стрижка", "Стрижка бороды"]
 danet = ['Да', 'Нет']
 
+storage = MemoryStorage()
 
 bot = Bot(token=bot_token)
-dp = Dispatcher()
+dp = Dispatcher(storage=storage)
 
 
 class Ms(StatesGroup):
@@ -60,6 +61,10 @@ async def incorrect_zapis(message: Message):
 @dp.message(Ms.data)
 async def send_data(callback_query: CallbackQuery, state: FSMContext):
 # async def send_data(message: Message, state: FSMContext):
+    print(state.update_data(usluga=callback_query.text))
+    user_temp=await state.get_data()
+    print('65')
+    print(user_temp)
     k = get_dates()
     ikeyb = get_data_kb(k)
     # await callback_query.message.answer(
@@ -68,7 +73,7 @@ async def send_data(callback_query: CallbackQuery, state: FSMContext):
     await callback_query.answer(
         "Выберите дату", reply_markup=ikeyb)
     await state.set_state(Ms.vremya)
-    print("k")
+
 
 
 # @dp.message(Ms.data)
@@ -79,46 +84,60 @@ async def send_data(callback_query: CallbackQuery, state: FSMContext):
 @dp.callback_query(F.data.startswith("data:"), Ms.vremya)
 async def process_selected_time(callback: CallbackQuery, state: FSMContext):
     date_str = callback.data.split(":")[1]
-
+    state.update_data(usdata=date_str)
     k = get_dates()
-    ikeyb = get_data_kb(k)
+    ikeyb = get_time_kb(k)
     print(k)
     print(ikeyb)
     await callback.answer(f"Вы выбрали дату: {date_str}")
     await callback.message.answer(f"Теперь выберите время для {date_str}", reply_markup=ikeyb)
 
     # Сохраняем дату в состояние
-    await state.update_data(selected_date=date_str)
+    # await state.update_data(selected_date=date_str)
     await state.set_state(Ms.podt)
+    print('*' * 50)
+    print(f"Дата выбрана {date_str}")
+    print('*' * 50)
 
 
-@dp.callback_query(F.data.startswith("yesno:"), Ms.podt)
+@dp.callback_query(F.data.startswith("time:"), Ms.podt)
 async def process_selected_yesno(callback: CallbackQuery, state: FSMContext):
     date_str = callback.data.split(":")[1]
-    yn_kb= get_yesno()
+    state.update_data(ustime=date_str)
+    yn_kb = get_yesno()
     print("Xd")
     print(date_str)
     print(yn_kb)
-    await callback.answer(f"Вы выбрали время: {date_str}")
-    await callback.message.answer(f"Теперь подтвердите вашу запись", reply_markup=yn_kb)
-    await state.set_state(Ms.finish)
 
-    # Сохраняем дату в состояние
-    await state.update_data(selected_date=date_str)
-    await state.set_state(Ms.finish)
-@dp.message(Ms.vremya)
-async def incorrect_vreamya(message: Message):
-    await message.answer("Ты неправильно выбрал время!")
+    await callback.answer()  # Просто закрыть спиннер
 
-@dp.message(Ms.podt)
-async def approve(message: Message, state: FSMContext):
-    await message.answer("... Подтвердите запись", reply_markup=create_kb4)
-    await state.set_state(Ms.finish)
+    # Отправляем новое сообщение с клавиатурой
+    hsm = await state.get_data()
+    print(hsm)
+    await bot.send_message(
+        chat_id=callback.from_user.id,
+        text=f"""Теперь подтвердите вашу запись
+             {hsm['usluga']}-{hsm['usdata']}-{hsm['ustime']}""",
+        reply_markup=yn_kb
+    )
+    await state.set_state(Ms.usluga)
+    # await state.update_data(selected_date=date_str)
+    # await state.set_state(Ms.finish)
 
-@dp.message(Ms.podt)
-async def incorrect_approve(message: Message):
-    await message.answer("Ты не выбрал действие! Нажми кнопку", reply_markup=create_kb1)
-
+#
+# @dp.message(Ms.vremya)
+# async def incorrect_vreamya(message: Message):
+#     await message.answer("Ты неправильно выбрал время!")
+#
+# @dp.message(Ms.podt)
+# async def approve(message: Message, state: FSMContext):
+#     await message.answer("... Подтвердите запись", reply_markup=create_kb4)
+#     await state.set_state(Ms.finish)
+#
+# @dp.message(Ms.podt)
+# async def incorrect_approve(message: Message):
+#     await message.answer("Ты не выбрал действие! Нажми кнопку", reply_markup=create_kb1)
+#
 
 
 
